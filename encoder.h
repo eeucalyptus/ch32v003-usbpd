@@ -7,12 +7,12 @@
 // converts a USB_PD_Message_t to a bit stream
 void convert_to_bitstream(USB_PD_Message_t *msg, uint8_t **bitstream, uint32_t *bitstream_length);
 
-// converts a bit stream to a BCM stream
-void convert_to_bcm(uint8_t *bitstream, uint32_t bitstream_length,
-                    uint8_t **bcm, uint32_t *bcm_length);
+// converts a bit stream to a BMC stream
+void convert_to_bmc(uint8_t *bitstream, uint32_t bitstream_length,
+                    uint8_t **bmc, uint32_t *bmc_length);
 
-// resamples a BCM stream
-void resample_bcm(uint8_t *bcm, uint32_t bcm_length, float resampling_factor, 
-                  uint8_t **rbcm, uint32_t *rbcm_length);
+// resamples a BMC stream
+void resample_bmc(uint8_t *bmc, uint32_t bmc_length, float resampling_factor, 
+                  uint8_t **rbmc, uint32_t *rbmc_length);
 
 #endif // _ENCODER_H_

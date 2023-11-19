@@ -27,24 +27,24 @@ int main(int argc, char *argv[])
     printf("bitstream:\n");
     print_bitstream(bitstream, bitstream_length);
 
-    // convert to bcm
-    uint8_t *bcm;
-    uint32_t bcm_length;
-    convert_to_bcm(bitstream, bitstream_length, &bcm, &bcm_length);
+    // convert to bmc
+    uint8_t *bmc;
+    uint32_t bmc_length;
+    convert_to_bmc(bitstream, bitstream_length, &bmc, &bmc_length);
 
-    // resample bcm
-    uint8_t *rbcm;
-    uint32_t rbcm_length;
-    resample_bcm(bcm, bcm_length, 1.5*1.22, &rbcm, &rbcm_length);
+    // resample bmc
+    uint8_t *rbmc;
+    uint32_t rbmc_length;
+    resample_bmc(bmc, bmc_length, 1.5*1.22, &rbmc, &rbmc_length);
 
-    // print bcm stream
-    printf("bcm stream:\n");
-    print_bitstream(rbcm, rbcm_length);
+    // print bmc stream
+    printf("bmc stream:\n");
+    print_bitstream(rbmc, rbmc_length);
 
-    // decode bcm
+    // decode bmc
     uint8_t *decoded_bitstream;
     uint32_t decoded_bitstream_length;
-    decode_bcm(rbcm, rbcm_length, &decoded_bitstream, &decoded_bitstream_length);
+    decode_bmc(rbmc, rbmc_length, &decoded_bitstream, &decoded_bitstream_length);
 
     // print decoded bitstream
     printf("decoded bitstream:\n");
@@ -54,8 +54,8 @@ int main(int argc, char *argv[])
     bool eq = compare_bitstreams(bitstream, decoded_bitstream, bitstream_length);
     printf("bitstreams are %s\n", eq ? "equal" : "not equal");
 
-    free(bcm);
-    free(rbcm);
+    free(bmc);
+    free(rbmc);
     free(decoded_bitstream);
 
     return 0;

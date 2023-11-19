@@ -5,7 +5,7 @@
 #include <stdlib.h> 
 
 
-bool decode_bcm_bit(BCM_Decoder_t *decoder, bool sample, bool *bit) {
+bool decode_bmc_bit(BMC_Decoder_t *decoder, bool sample, bool *bit) {
     decoder->last_samples = (decoder->last_samples << 1) | sample;
     if(sample == decoder->last_sample) {
         decoder->last_transition++;
@@ -37,27 +37,27 @@ bool decode_bcm_bit(BCM_Decoder_t *decoder, bool sample, bool *bit) {
     return false;
 }
 
-void decode_bcm(uint8_t *bcm, uint32_t bcm_length, uint8_t **bitstream, uint32_t *bitstream_length_bits) {
+void decode_bmc(uint8_t *bmc, uint32_t bmc_length, uint8_t **bitstream, uint32_t *bitstream_length_bits) {
     int pos = 0;
     int num_preamble_bits = 0;
-    BCM_Decoder_t decoder = decoder_init();
+    BMC_Decoder_t decoder = decoder_init();
 
-    int bitstream_length_bytes = (bcm_length)/8 + ((bcm_length)%8 != 0);
+    int bitstream_length_bytes = (bmc_length)/8 + ((bmc_length)%8 != 0);
     *bitstream = malloc(bitstream_length_bytes);
 
     uint32_t bit_counter = 0;
-    for(int i = 0; i < bcm_length; i++) {
+    for(int i = 0; i < bmc_length; i++) {
         bool bit;
-        if(decode_bcm_bit(&decoder, getbit(bcm, i), &bit)) {
+        if(decode_bmc_bit(&decoder, getbit(bmc, i), &bit)) {
             setbit(*bitstream, bit_counter, bit);
             bit_counter++;
         }
     }
     *bitstream_length_bits = bit_counter;
 
-    // while(num_preamble_bits < BITSTREAM_PREAMBLE_LENGTH && pos < bcm_length) {
+    // while(num_preamble_bits < BITSTREAM_PREAMBLE_LENGTH && pos < bmc_length) {
     //     bool bit;
-    //     if(decode_bcm_bit(&decoder, getbit(bcm, pos), &bit)) {
+    //     if(decode_bmc_bit(&decoder, getbit(bmc, pos), &bit)) {
     //         bool expected_bit = (num_preamble_bits % 2 != 0);
     //         if(bit != expected_bit) {
     //           printf("error in preamble decoding, pos: %d, expected: %d, got: "
@@ -71,8 +71,8 @@ void decode_bcm(uint8_t *bcm, uint32_t bcm_length, uint8_t **bitstream, uint32_t
     // printf("number of decoded preable bits: %d, position at end: %d\n", num_preamble_bits, pos);
 }
 
-BCM_Decoder_t decoder_init() {
-    BCM_Decoder_t decoder = {
+BMC_Decoder_t decoder_init() {
+    BMC_Decoder_t decoder = {
         .last_sample = 1,
         .last_transition = 100, // assume we start with no transitions
         .second_transition = false,

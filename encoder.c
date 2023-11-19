@@ -7,10 +7,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-// Number of prepended '1's in BCM stream
-#define BCM_PREFIX_LENGTH (20)
-// Number of appended '1's in BCM stream
-#define BCM_POSTFIX_LENGTH (20)
+// Number of prepended '1's in BMC stream
+#define BMC_PREFIX_LENGTH (20)
+// Number of appended '1's in BMC stream
+#define BMC_POSTFIX_LENGTH (20)
 
 // sets the 5 bits of a K code in the buffer and returns the number of bits set
 int setkcode(uint8_t *buffer, int pos, K_Codes_t code) {
@@ -67,53 +67,53 @@ void convert_to_bitstream(USB_PD_Message_t *msg, uint8_t **bitstream, uint32_t *
     bitcount += setkcode(*bitstream, bitcount, K_CODE_EOP);
 }
 
-void convert_to_bcm(uint8_t *bitstream, uint32_t bitstream_length,
-                    uint8_t **bcm, uint32_t *bcm_length) {
-    // calculate length of bcm
-    *bcm_length =
-        bitstream_length*2 + BCM_PREFIX_LENGTH + BCM_POSTFIX_LENGTH;
-    int bcm_length_bytes = *bcm_length / 8 + (*bcm_length % 8 != 0);
-    // allocate memory for bcm
-    *bcm = malloc(bcm_length_bytes);
+void convert_to_bmc(uint8_t *bitstream, uint32_t bitstream_length,
+                    uint8_t **bmc, uint32_t *bmc_length) {
+    // calculate length of bmc
+    *bmc_length =
+        bitstream_length*2 + BMC_PREFIX_LENGTH + BMC_POSTFIX_LENGTH;
+    int bmc_length_bytes = *bmc_length / 8 + (*bmc_length % 8 != 0);
+    // allocate memory for bmc
+    *bmc = malloc(bmc_length_bytes);
 
     // write prefix
-    for (int i = 0; i < BCM_PREFIX_LENGTH; i++) {
-        setbit(*bcm, i, 1);
+    for (int i = 0; i < BMC_PREFIX_LENGTH; i++) {
+        setbit(*bmc, i, 1);
     }
     bool last_state = 1;
-    // write bitstream as differential manchester code (BCM)
+    // write bitstream as differential manchester code (BMC)
     // Every bit starts with a transition. A 1 has a second transition, a 0 
     // doesn't have a second transition
     for(int i = 0; i < bitstream_length; i++) {
         bool bit = getbit(bitstream, i);
         if(bit) {
-            setbit(*bcm, BCM_PREFIX_LENGTH + i*2, !last_state);
-            setbit(*bcm, BCM_PREFIX_LENGTH + i*2 + 1, last_state);
+            setbit(*bmc, BMC_PREFIX_LENGTH + i*2, !last_state);
+            setbit(*bmc, BMC_PREFIX_LENGTH + i*2 + 1, last_state);
             last_state = last_state;
         } else {
-            setbit(*bcm, BCM_PREFIX_LENGTH + i*2, !last_state);
-            setbit(*bcm, BCM_PREFIX_LENGTH + i*2 + 1, !last_state);
+            setbit(*bmc, BMC_PREFIX_LENGTH + i*2, !last_state);
+            setbit(*bmc, BMC_PREFIX_LENGTH + i*2 + 1, !last_state);
             last_state = !last_state;
         }
     }
     // write postfix
-    for(int i = 0; i < BCM_POSTFIX_LENGTH; i++) {
-        setbit(*bcm, (*bcm_length)-i-1, 1);
+    for(int i = 0; i < BMC_POSTFIX_LENGTH; i++) {
+        setbit(*bmc, (*bmc_length)-i-1, 1);
     }
 }
 
-void resample_bcm(uint8_t *bcm, uint32_t bcm_length, float resampling_factor, 
-                  uint8_t **rbcm, uint32_t *rbcm_length) {
-    // calculate length of rbcm
-    float rbcm_length_float = bcm_length * resampling_factor;
-    *rbcm_length = ceil(rbcm_length_float);
-    int rbcm_length_bytes = *rbcm_length / 8 + (*rbcm_length % 8 != 0);
-    // allocate memory for rbcm
-    *rbcm = malloc(rbcm_length_bytes);
+void resample_bmc(uint8_t *bmc, uint32_t bmc_length, float resampling_factor, 
+                  uint8_t **rbmc, uint32_t *rbmc_length) {
+    // calculate length of rbmc
+    float rbmc_length_float = bmc_length * resampling_factor;
+    *rbmc_length = ceil(rbmc_length_float);
+    int rbmc_length_bytes = *rbmc_length / 8 + (*rbmc_length % 8 != 0);
+    // allocate memory for rbmc
+    *rbmc = malloc(rbmc_length_bytes);
 
     // resample, floor sample position
-    for(uint32_t i = 0; i < *rbcm_length; i++) {
+    for(uint32_t i = 0; i < *rbmc_length; i++) {
         uint32_t sample_pos = floor(i/resampling_factor);
-        setbit(*rbcm, i, getbit(bcm, sample_pos));
+        setbit(*rbmc, i, getbit(bmc, sample_pos));
     }
 }
