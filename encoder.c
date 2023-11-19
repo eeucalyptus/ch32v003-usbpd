@@ -8,9 +8,9 @@
 #include <stdbool.h>
 
 // Number of prepended '1's in BCM stream
-#define BCM_PREFIX_LENGTH (0)
+#define BCM_PREFIX_LENGTH (20)
 // Number of appended '1's in BCM stream
-#define BCM_POSTFIX_LENGTH (0)
+#define BCM_POSTFIX_LENGTH (20)
 
 // sets the 5 bits of a K code in the buffer and returns the number of bits set
 int setkcode(uint8_t *buffer, int pos, K_Codes_t code) {

@@ -74,7 +74,7 @@ void decode_bcm(uint8_t *bcm, uint32_t bcm_length, uint8_t **bitstream, uint32_t
 BCM_Decoder_t decoder_init() {
     BCM_Decoder_t decoder = {
         .last_sample = 1,
-        .last_transition = -1,
+        .last_transition = 100, // assume we start with no transitions
         .second_transition = false,
         .last_samples = 0xff,
     };
