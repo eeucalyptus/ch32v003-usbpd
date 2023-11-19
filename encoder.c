@@ -22,8 +22,8 @@ int setkcode(uint8_t *buffer, int pos, K_Codes_t code) {
 
 // sets the 10 kcode-bits of a byte in the buffer and returns the number of bits set
 int setbyte(uint8_t *buffer, int pos, uint8_t byte) {
-    setkcode(buffer, pos, K_CODE_FOR_VALUE[byte & 0b1111]);
-    setkcode(buffer, pos+5, K_CODE_FOR_VALUE[byte >> 4]);
+    setkcode(buffer, pos, K_CODE_FOR_VALUE[byte >> 4]);
+    setkcode(buffer, pos+5, K_CODE_FOR_VALUE[byte & 0b1111]);
     return KCODE_BYTE_BITS;
 }
 
