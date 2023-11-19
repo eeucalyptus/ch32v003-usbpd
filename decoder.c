@@ -49,7 +49,6 @@ void decode_bcm(uint8_t *bcm, uint32_t bcm_length, uint8_t **bitstream, uint32_t
     for(int i = 0; i < bcm_length; i++) {
         bool bit;
         if(decode_bcm_bit(&decoder, getbit(bcm, i), &bit)) {
-            printf("got %d\n", bit);
             setbit(*bitstream, bit_counter, bit);
             bit_counter++;
         }

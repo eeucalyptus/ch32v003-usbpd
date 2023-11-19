@@ -27,18 +27,11 @@ int setbyte(uint8_t *buffer, int pos, uint8_t byte) {
     return KCODE_BYTE_BITS;
 }
 
-void print_bitstream(uint8_t *bitstream, int bitstream_length_bits)
-{
-    for(int i = 0; i < bitstream_length_bits; i++) {
-        printf("%d,", getbit(bitstream, i));
-    }
-    printf("\n");
-}
-
-void convert_to_bitstream(USB_PD_Message_t *msg, uint8_t **bitstream) {
+void convert_to_bitstream(USB_PD_Message_t *msg, uint8_t **bitstream, uint32_t *bitstream_length) {
     // calculate length of bitstream
     int bitstream_length_bits = BITSTREAM_MESSAGE_LENGTH(msg->payload_length);
     int bitstream_length_bytes = bitstream_length_bits/8 + (bitstream_length_bits%8 != 0);
+    *bitstream_length = bitstream_length_bits;
     // allocate memory for bitstream
     *bitstream = malloc(bitstream_length_bytes);
     

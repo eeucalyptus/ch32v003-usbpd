@@ -1,7 +1,7 @@
 # makefile for usb pd tests
 
 appname := usbpd_test
-appobjs := main.o decoder.o encoder.o usbpd.o
+appobjs := main.o decoder.o encoder.o usbpd.o debug_usbpd.o
 
 CFLAGS := -DMAX_PAYLOAD_LENGTH=1024 
 LDFLAGS := 
