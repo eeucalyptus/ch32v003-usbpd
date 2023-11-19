@@ -11,7 +11,7 @@
 #define BITSTREAM_HEADER_LENGTH (KCODE_BYTE_BITS*2)
 #define BITSTREAM_CRC_LENGTH (KCODE_BYTE_BITS*4)
 #define BITSTREAM_EOP_LENGTH (KCODE_BITS*1)
-#define BITSTREAM_PAYLOAD_LENGTH(payload_length) (KCODE_BITS*payload_length)
+#define BITSTREAM_PAYLOAD_LENGTH(payload_length) (KCODE_BYTE_BITS*payload_length)
 
 #define getbit(buffer, pos) (((buffer)[pos/8] & (1 << (pos%8))) != 0)
 #define setbit(buffer, pos, value) ((buffer)[(pos)/8] = ((buffer)[(pos)/8] & ~(1 << ((pos)%8))) | ((value) << ((pos)%8)))

@@ -24,8 +24,8 @@ int main(int argc, char *argv[])
     convert_to_bitstream(&input_msg, &bitstream, &bitstream_length);
 
     // print bitstream
-    printf("bitstream:\n");
-    print_bitstream(bitstream, bitstream_length);
+    // printf("bitstream:\n");
+    // print_bitstream(bitstream, bitstream_length);
 
     // convert to bmc
     uint8_t *bmc;
@@ -38,8 +38,8 @@ int main(int argc, char *argv[])
     resample_bmc(bmc, bmc_length, 1.5*1.22, &rbmc, &rbmc_length);
 
     // print bmc stream
-    printf("bmc stream:\n");
-    print_bitstream(rbmc, rbmc_length);
+    // printf("bmc stream:\n");
+    // print_bitstream(rbmc, rbmc_length);
 
     // decode bmc
     uint8_t *decoded_bitstream;
@@ -47,12 +47,12 @@ int main(int argc, char *argv[])
     decode_bmc(rbmc, rbmc_length, &decoded_bitstream, &decoded_bitstream_length);
 
     // print decoded bitstream
-    printf("decoded bitstream:\n");
-    print_bitstream(decoded_bitstream, decoded_bitstream_length);
+    // printf("decoded bitstream:\n");
+    // print_bitstream(decoded_bitstream, decoded_bitstream_length);
 
     // compare bitstreams
     bool eq = compare_bitstreams(bitstream, decoded_bitstream, bitstream_length);
-    printf("bitstreams are %s\n", eq ? "equal" : "not equal");
+    // printf("bitstreams are %s\n", eq ? "equal" : "not equal");
 
     free(bmc);
     free(rbmc);

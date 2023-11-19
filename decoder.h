@@ -7,33 +7,42 @@
 #include <stdint.h>
 
 typedef enum {
-    BMC_DECODER_STATE_IDLE = 0,
-    BMC_DECODER_STATE_PREAMBLE,
-    BMC_DECODER_STATE_DATA
-} BMC_Decoder_State_t;
+    PACKET_DECODER_STATE_PREAMBLE,
+    PACKET_DECODER_STATE_SOP,
+    PACKET_DECODER_STATE_HEADER,
+    PACKET_DECODER_STATE_PAYLOAD,
+    PACKET_DECODER_STATE_DONE,
+    PACKET_DECODER_STATE_ERROR,
+} Packet_Decoder_State_t;
 
 typedef struct {
-    BMC_Decoder_State_t state;
+    Packet_Decoder_State_t state;
+    uint32_t bit_counter;
+    uint16_t bit_buffer;
+    uint32_t state_counter;
+    uint8_t header[2];
+    // Payload contains CRC in the last 4 bytes
+    uint8_t payload[MAX_PAYLOAD_LENGTH];
+    uint32_t payload_length;
+} Packet_Decoder_t;
+
+// decodes a packet from a bit stream. Returns true if a packet was decoded
+bool decode_packet_bit(Packet_Decoder_t *decoder, bool bit);
+
+typedef struct {
     uint32_t last_transition;
     bool last_sample;
-    uint32_t preamble_count;
     bool second_transition;
     uint8_t last_samples;
 } BMC_Decoder_t;
 
-// // decodes a BMC stream, returns true if a transmission start was detected
-// bool decode_bmc_start(BMC_Decoder_t *decoder, uint8_t bit);
+// decodes a BMC bit from a sample stream. Returns true if a bit was decoded
+bool decode_bmc_sample(BMC_Decoder_t *decoder, bool sample, bool *bit);
 
-// // decodes a BMC stream, returns true if a preamble was decoded
-// bool decode_bmc_preamble(BMC_Decoder_t *decoder, uint8_t bit);
-
-// // decodes a BMC stream, returns true if a K-code was decoded
-// bool decode_bmc_kcode(BMC_Decoder_t *decoder, uint8_t bit, K_Codes_t *kcode);
-
-// bool kcodes_to_byte(K_Codes_t *kcodes, uint8_t *byte);
-
+// decodes a BMC stream to a bit stream
 void decode_bmc(uint8_t *bmc, uint32_t bmc_length, uint8_t **bitstream, uint32_t *bitstream_length_bits);
 
-BMC_Decoder_t decoder_init();
+BMC_Decoder_t bmc_decoder_init();
+Packet_Decoder_t packet_decoder_init();
 
 #endif // _DECODER_H_
