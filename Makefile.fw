@@ -1,6 +1,6 @@
-
-
 TARGET:=usbpd_fw
+
+ADDITIONAL_C_FILES:=debug_usbpd.o decoder.o encoder.o usbpd.o 
 
 CH32V003FUN:=ch32v003fun/ch32v003fun
 MINICHLINK:=ch32v003fun/minichlink
@@ -8,9 +8,11 @@ include ch32v003fun/ch32v003fun/ch32v003fun.mk
 
 all : build_fw
 
-
-build_fw: build
-	rm -f $(TARGET).elf $(TARGET).hex $(TARGET).lst $(TARGET).map $(TARGET).hex 
+build_fw: $(ADDITIONAL_C_FILES) build
+	rm -f $(TARGET).elf $(TARGET).hex $(TARGET).lst $(TARGET).map $(ADDITIONAL_C_FILES)
 
 flash : cv_flash
 clean : cv_clean
+
+%.o: %.c
+	$(PREFIX)-gcc -c -o $@ $< $(CFLAGS) $(LDFLAGS)

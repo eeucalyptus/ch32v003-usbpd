@@ -135,8 +135,6 @@ bool decode_bmc_sample(BMC_Decoder_t *decoder, bool sample, bool *bit) {
 }
 
 void decode_bmc(uint8_t *bmc, uint32_t bmc_length, uint8_t **bitstream, uint32_t *bitstream_length_bits) {
-    int pos = 0;
-    int num_preamble_bits = 0;
     BMC_Decoder_t bmc_decoder = bmc_decoder_init();
     Packet_Decoder_t packet_decoder = packet_decoder_init();
 
@@ -153,7 +151,7 @@ void decode_bmc(uint8_t *bmc, uint32_t bmc_length, uint8_t **bitstream, uint32_t
             if (packet_decoded) {
                 printf("packet decoded\n");
                 printf("header: %02x %02x\n", packet_decoder.header[0], packet_decoder.header[1]);
-                printf("payload length: %d\n", packet_decoder.payload_length);
+                printf("payload length: %d\n", (int)packet_decoder.payload_length);
                 printf("payload: ");
                 for(int i = 0; i < packet_decoder.payload_length-4; i++) {
                     printf("%02x ", packet_decoder.payload[i]);

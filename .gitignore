@@ -1,2 +1,8 @@
 *.o
 usbpd_test
+*.elf
+*.hex
+*.bin
+*.lst
+*.map
+
