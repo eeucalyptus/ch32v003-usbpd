@@ -5,4 +5,5 @@ usbpd_test
 *.bin
 *.lst
 *.map
+compile_commands.json
 
