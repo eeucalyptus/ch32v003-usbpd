@@ -350,7 +350,5 @@ void prototype_send_packet() {
     for(int i = 0; i < 64; i++) {
         send_kcode((data_buffer[i] >> 4) & KCODE_DATA_MASK);
         send_kcode((data_buffer[i] >> 0) & KCODE_DATA_MASK);
-        
     }
-    
 }
