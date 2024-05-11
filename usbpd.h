@@ -16,10 +16,7 @@
 #define getbit(buffer, pos) (((buffer)[pos/8] & (1 << (pos%8))) != 0)
 #define setbit(buffer, pos, value) ((buffer)[(pos)/8] = ((buffer)[(pos)/8] & ~(1 << ((pos)%8))) | ((value) << ((pos)%8)))
 
-#define BITSTREAM_MESSAGE_LENGTH(payload_length) (BITSTREAM_PREAMBLE_LENGTH + \
-  BITSTREAM_SOP_LENGTH + BITSTREAM_HEADER_LENGTH + \
-  BITSTREAM_PAYLOAD_LENGTH(payload_length) + BITSTREAM_CRC_LENGTH + \
-  BITSTREAM_EOP_LENGTH)
+#define BITSTREAM_MESSAGE_LENGTH(payload_length) 
 
 #ifndef MAX_PAYLOAD_LENGTH
 #define MAX_PAYLOAD_LENGTH 1024

@@ -165,19 +165,19 @@ const uint8_t pd_5code_lut[] = {
     /*KCODE_RST2*/0b11001,
     /*KCODE_EOP*/0b01101,
     /*KCODE_SYNC3*/0b00110,
-}
+};
 
 void prototype_read_preamble();
 void prototype_read_data();
 void prototype_read_kcode(uint8_t *kcode);
 
 // static variables
-static uint8_t shifty; // a0
-static uint8_t bit_count; // a1
-static uint8_t bits; // a2
-static uint8_t *data_ptr; // a3
-static uint8_t data_buffer[64]; // static
-static uint32_t pd_timer; // a4
+uint8_t shifty; // a0
+uint8_t bit_count; // a1
+uint8_t bits; // a2
+uint8_t *data_ptr; // a3
+uint8_t data_buffer[64]; // static
+uint32_t pd_timer; // a4
 
 void pd_invalid_bitsequence() {
     while(1);

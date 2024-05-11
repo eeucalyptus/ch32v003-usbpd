@@ -1,93 +1,101 @@
 #include "ch32v003fun.h"
 #include "pd_phy.h"
 
-global pd_bit_lut
-
 #define CFGLR_OFFSET 0
 #define INDR_OFFSET 8
 #define OUTDR_OFFSET 12
 #define BSHR_OFFSET 16
 
+//#define SysTick_BASE (0xE000F000)
 #define SYSTICK_CNT_OFFSET 0x8
 
 .section .text.vector_handler
 .global EXTI7_0_IRQHandler
 .balign 4
+
 EXTI7_0_IRQHandler:
 recv_packet:
-    addi sp,sp,-80
+    addi sp,sp,-80  
 	sw a0, 0(sp)
 	sw a1, 4(sp)
 	sw a2, 8(sp)
 	sw a3, 12(sp)
 	sw a4, 16(sp)
-	sw a5, 20(sp)
+	sw a5, 20(sp) // work register
     sw t0, 24(sp)
     sw t1, 28(sp)
     sw t2, 32(sp)
 
+retry_recv_packet:
     // initialize state
     li a0, 0b110 // shifty
     li a1, 0 // bit count
     li a2, 0 // bits
-    li a3, data_buffer // data ptr  
-	la a5, PD_GPIO_BASE // GPIO ptr
+    
+    lui a3, %hi(data_buffer) // data ptr  
+    addi a3, a3, %lo(data_buffer)
 
-    la t0, SysTick
-    li a4, SYSTICK_CNT_OFFSET(t0) // timer
+wait_for_low:
+	la a5, PD_GPIO_BASE // GPIO ptr
+    lw a5, INDR_OFFSET(a5)
+    c.srli a5, PD_PIN
+    c.andi a5, 1
+    c.beqz a5, wait_for_low
+
+    la t0, SysTick_BASE
+    lw a4, SYSTICK_CNT_OFFSET(t0) // timer
     //addi a4, a4, -10 // tune timer to start in the past
 
 preamble:
     // wait for sample
     addi a4, a4, PD_TIMER_RX_PERIOD
-    la t0, SysTick
+    la t0, SysTick_BASE
 sync_loop1:
     lw t1, SYSTICK_CNT_OFFSET(t0)
     blt t1, a4, sync_loop1
 
     // sample input
-    lw t0, INDR_OFFSET(a5)
-    c.srli t0, PD_PIN
-    c.andi t0, 1
+	la a5, PD_GPIO_BASE // GPIO ptr
+    lw a5, INDR_OFFSET(a5)
+    c.srli a5, PD_PIN
+    c.andi a5, 1
     // shift in sample
     c.slli a0, 1
-    c.or a0, t0
+    c.or a0, a5
 
     // check bit event from lut
-    mv a0, t0
-    c.andi t0, 0b111111
+    li a5, 0b111111
+    c.and a5, a0
     la t1, pd_bit_lut
-    add t1, t0
-    lb t0, t1
+    c.add t1, a5
+    lb a5, (t1)
 
     // cases
-    c.bez t0, preamble // NONE
-    li t1, PD_BIT_LUT_1
-    c.beq t0, t1, preamble_bit1 // 1
-    li t1, PD_BIT_LUT_0
-    c.beq t0, t1, preamble_bit0 // 0
+    c.beqz a5, preamble // NONE
     li t1, PD_BIT_LUT_INVALID
-    c.beq t0, t1, preamble_invalid // INVALID
+    c.beqz a5, preamble_invalid // INVALID
+    li t1, PD_BIT_LUT_0
+    c.beqz a5, preamble_bit0 // 0
     
 preamble_bit1:
     // check preamble bit
-    mv t0, a1
-    c.andi t0, 1
+    mv a5, a1
+    c.andi a5, 1
     // invalid if unexpected 0
-    c.bez t0, preamble_invalid 
+    c.beqz a5, preamble_invalid 
     // count up
     addi a1, a1, 1
     // check for full preamble
-    li t0, 50
-    c.bge t0, a1, preamble_done
+    li a5, 50 // TODO is probably 49 instead because of bgt, or use bge instead
+    bgt a5, a1, preamble_done
     c.j preamble
 
 preamble_bit0:
     // check preamble bit
-    mv t0, a1
-    c.andi t0, 1
+    mv a5, a1
+    c.andi a5, 1
     // invalid if unexpected 1
-    c.bnez t0, preamble_invalid 
+    c.bnez a5, preamble_invalid 
     // count up
     addi a1, a1, 1
     // no need to check for full preamble (last bit has to be 1)
@@ -96,35 +104,43 @@ preamble_bit0:
 
 preamble_invalid:
     // end in invalid state
-    c.j preamble_invalid
+    li a5, 0b111111
+    c.and a5, a0
+    bnez a5, bad_preamble
+    bnez a1, bad_preamble
+    c.j retry_recv_packet
+bad_preamble:
+    // return bad_preamble 
+    c.j bad_preamble
+
 
 preamble_done:
     // check for SOF
     call recv_kcode
-    addi a2, a2, -KCODE_SYNC1
+    c.addi a2, -PD_KCODE_SYNC1
     c.bnez a2, sof_invalid
     call recv_kcode
-    addi a2, a2, -KCODE_SYNC1
+    c.addi a2, -PD_KCODE_SYNC1
     c.bnez a2, sof_invalid
     call recv_kcode
-    addi a2, a2, -KCODE_SYNC1
+    c.addi a2, -PD_KCODE_SYNC1
     c.bnez a2, sof_invalid
     call recv_kcode
-    addi a2, a2, -KCODE_SYNC2
+    c.addi a2, -PD_KCODE_SYNC2
     c.bnez a2, sof_invalid
 
 recv_data:
     call recv_kcode
-    mv t0, a2
-    addi t0, t0, -KCODE_EOP
-    c.beqz t0, recv_data_end
+    mv a5, a2
+    c.addi a5, -PD_KCODE_EOP
+    c.beqz a5, recv_data_end
     // store data
-    mv t0, a2
+    mv a5, a2
     call recv_kcode
-    c.slli t0, 4
+    c.slli a5, 4
     // no need to mask kcode, only 4 bits of data expected
-    c.or t0, a2
-    sb t0, 0(a3)
+    c.or a5, a2
+    sb a5, (a3)
     addi a3, a3, 1
 
 recv_data_end:
@@ -137,7 +153,7 @@ recv_data_end:
     lw a3, 12(sp)
     lw a2, 8(sp)
     lw a1, 4(sp)
-    lw a0, 0(sp)
+    lw a0, (sp)
     addi sp,sp,80
     mret
 
@@ -153,48 +169,45 @@ recv_kcode:
 recv_kcode_loop:
     // wait for sample
     addi a4, a4, PD_TIMER_RX_PERIOD
-    la t0, SysTick
+    la t0, SysTick_BASE
 sync_loop2:
     lw t1, SYSTICK_CNT_OFFSET(t0)
     blt t1, a4, sync_loop2
 
     // sample input
-    lw t0, INDR_OFFSET(a5)
-    c.srli t0, PD_PIN
-    c.andi t0, 1
-    // shift in sample
+    lw a5, INDR_OFFSET(a5)
+    c.srli a5, PD_PIN
+    c.andi a5, 1
+    // shift in sample 0(
     c.slli a0, 1
-    c.or a0, t0
+    c.or a0, a5
 
     // check bit event from lut
-    mv a0, t0
-    c.andi t0, 0b111111
+    li a5, 0b111111
+    c.and a5, a0
     la t1, pd_bit_lut
-    add t1, t0
-    lb t0, t1
+    c.add t1, a5
+    lb a5, (t1)
 
     // cases
-    c.bez t0, recv_kcode_loop // NONE
-    li t1, PD_BIT_LUT_1
-    c.beq t0, t1, recv_kcode_bit1 // 1
-    li t1, PD_BIT_LUT_0
-    c.beq t0, t1, recv_kcode_bit0 // 0
+    c.beqz a5, recv_kcode_loop // NONE
     li t1, PD_BIT_LUT_INVALID
-    c.beq t0, t1, recv_kcode_invalid // INVALID
+    c.beqz a5, recv_kcode_invalid // INVALID
+    li t1, PD_BIT_LUT_0
+    c.beqz a5, recv_kcode_bit0 // 0
 
 recv_kcode_bit1:
     c.slli a2, 1
-    c.ori a2, 1
+    c.addi a2, 1
     c.j recv_kcode_bit
 recv_kcode_bit0:
     c.slli a2, 1
-    c.ori a2, 0
 recv_kcode_bit:
     // count up
     addi a1, a1, 1
     // check for full preamble
     li t0, 5
-    c.bge t0, a1, recv_kcode_end
+    bge t0, a1, recv_kcode_end
     c.j recv_kcode_loop
 
 recv_kcode_invalid:
@@ -204,53 +217,57 @@ recv_kcode_invalid:
 recv_kcode_end:
     // c.andi a2, 0b11111 // no need to mask, only 5 bits
     la t0, pd_kcode_lut
-    add t0, a2
-    lb a2, t0
+    c.add t0, a2
+    lb a2, (t0)
     ret
 
+.global send_packet
+.balign 4
 send_packet:
     addi sp,sp,-80
 	sw a0, 0(sp)
 	sw a1, 4(sp)
-	//sw a2, 8(sp)
+	sw a2, 8(sp)
 	sw a3, 12(sp)
 	sw a4, 16(sp)
-	sw a5, 20(sp)
+	sw a5, 20(sp) // work register
     sw t0, 24(sp)
     sw t1, 28(sp)
     sw t2, 32(sp)
-    sw ra, 36(sp) // save ra
+    sw ra, 36(sp) 
 
     // initialize state
     //li a0, 0 // bit to send
     //li a1, 0 // kcode to send
-    li a3, data_buffer // data ptr  
-	la a5, PD_GPIO_BASE // GPIO ptr
+    la a3, PD_OH_GPIO_BASE // GPIO ptr  
 
-    la t0, SysTick
-    li a4, SYSTICK_CNT_OFFSET(t0) // timer
+    la t0, SysTick_BASE
+    lw a4, SYSTICK_CNT_OFFSET(t0) // timer
+    sw a4, 40(sp)// push timer to stack
     //addi a4, a4, -10 // tune timer to start in the past
 
 send_preamble:
-    ldi t0, 25
+    li a5, 25
 send_preamble_loop:
+    sw a5, 44(sp)
     // send bit 0
     li a0, 0
     call send_bit
     li a0, 1
     call send_bit
-    addi t0, t0, -1
-    c.bnez t0, send_preamble_loop
+    lw a5, 44(sp)
+    c.addi a5, -1
+    c.bnez a5, send_preamble_loop    
 
     // send SOF
-    li a1, KCODE_SYNC1
-    call send_kcode
-    li a1, KCODE_SYNC1
-    call send_kcode
-    li a1, KCODE_SYNC1
-    call send_kcode
-    li a1, KCODE_SYNC2
-    call send_kcode
+    ; li a1, PD_KCODE_SYNC1
+    ; call send_kcode
+    ; li a1, PD_KCODE_SYNC1
+    ; call send_kcode
+    ; li a1, PD_KCODE_SYNC1
+    ; call send_kcode
+    ; li a1, PD_KCODE_SYNC2
+    ; call send_kcode
 
 send_data:
     // TODO implement
@@ -273,50 +290,60 @@ send_data:
 send_kcode:
     // get 5code for kcode from lut
     la t0, pd_5code_lut
-    add t0, a1
-    lb a1, t0
+    c.add t0, a1
+    lb a1, (t0)
 
     // send 5 bits
-    ldi t0, 4
+    li t0, 4
 send_kcode_loop:
     mv a0, a1
-    c.srli a0, t0
+    c.srli a0, 1
     c.andi a0, 1
     mv t2, ra // send_bit doesn't use t2
     call send_bit
     mv ra, t2
-    addi t0, t0, -1
-    bge t0, zero, send_kcode_loop
+    c.addi t0, -1
+    mv a5, t0
+    bge a5, zero, send_kcode_loop
     ret
 
 // sends bit in a0
 send_bit:
     // first half of bit
-    ldi t0, 1
-    c.slli t0, PD_PIN
-    lw t1, OUTDR_OFFSET(a5)
-    c.xor t1, t0
-    sw t1, OUTDR_OFFSET(a5)
-    c.xor t1, t0
+    li a4, 1
+    c.slli a4, PD_OH_PIN
+    lw a5, OUTDR_OFFSET(a3)
+    c.xor a5, a4
+    sw a5, OUTDR_OFFSET(a3)
 
     // wait for sample
+    lw a4, 40(sp)
     addi a4, a4, PD_TIMER_TX_PERIOD
-    la t0, SysTick
+    sw a4, 40(sp)
+    la t0, SysTick_BASE
 sync_loop3:
-    lw t1, SYSTICK_CNT_OFFSET(t0)
-    blt t1, a4, sync_loop3
+    lw a5, SYSTICK_CNT_OFFSET(t0)
+    blt a5, a4, sync_loop3
 
     // second half of bit
+second_half:
     c.beqz a0, skip_second_transistion
-    sw t1, OUTDR_OFFSET(a5)
-
+    // transition for 1
+    li a4, 1
+    c.slli a4, PD_OH_PIN
+    lw a5, OUTDR_OFFSET(a3)
+    c.xor a5, a4
+    sw a5, OUTDR_OFFSET(a3)
 skip_second_transistion:
     // wait for sample
+    lw a4, 40(sp)
     addi a4, a4, PD_TIMER_TX_PERIOD
-    la t0, SysTick
+    sw a4, 40(sp)
+    la t0, SysTick_BASE
 sync_loop4:
-    lw t1, SYSTICK_CNT_OFFSET(t0)
-    blt t1, a4, sync_loop3
+    lw a5, SYSTICK_CNT_OFFSET(t0)
+    blt a5, a4, sync_loop4
+    ret
 
 
 /*
