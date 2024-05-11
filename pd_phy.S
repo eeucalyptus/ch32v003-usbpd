@@ -247,27 +247,178 @@ send_packet:
     //addi a4, a4, -10 // tune timer to start in the past
 
 send_preamble:
-    li a5, 25
+    li a5, 50
 send_preamble_loop:
     sw a5, 44(sp)
-    // send bit 0
-    li a0, 0
-    call send_bit
-    li a0, 1
-    call send_bit
+    andi a0, a5, 1
+send_preamble_bit:
+    // first half of bit
+    li a4, 1
+    c.slli a4, PD_OH_PIN
+    lw a5, OUTDR_OFFSET(a3)
+    c.xor a5, a4
+    sw a5, OUTDR_OFFSET(a3)
+
+    // wait for sample
+    lw a4, 40(sp)
+    addi a4, a4, PD_TIMER_TX_PERIOD
+    sw a4, 40(sp)
+    la t0, SysTick_BASE
+preamble_bit_sync1:
+    lw a5, SYSTICK_CNT_OFFSET(t0)
+    blt a5, a4, preamble_bit_sync1
+
+    // second half of bit
+preamble_bit_second_half:
+    c.beqz a0, preamble_bit_skip_second_transistion
+    // transition for 1
+    li a4, 1
+    c.slli a4, PD_OH_PIN
+    lw a5, OUTDR_OFFSET(a3)
+    c.xor a5, a4
+    sw a5, OUTDR_OFFSET(a3)
+preamble_bit_skip_second_transistion:
+    // wait for sample
+    lw a4, 40(sp)
+    addi a4, a4, PD_TIMER_TX_PERIOD
+    sw a4, 40(sp)
+    la t0, SysTick_BASE
+preamble_bit_sync2:
+    lw a5, SYSTICK_CNT_OFFSET(t0)
+    blt a5, a4, preamble_bit_sync2
+
     lw a5, 44(sp)
     c.addi a5, -1
-    c.bnez a5, send_preamble_loop    
+    c.bnez a5, send_preamble_loop
 
     // send SOF
-    ; li a1, PD_KCODE_SYNC1
-    ; call send_kcode
-    ; li a1, PD_KCODE_SYNC1
-    ; call send_kcode
-    ; li a1, PD_KCODE_SYNC1
-    ; call send_kcode
-    ; li a1, PD_KCODE_SYNC2
-    ; call send_kcode
+    li a1, PD_KCODE_SYNC1
+    call send_kcode
+    li a1, PD_KCODE_SYNC1
+    call send_kcode
+    li a1, PD_KCODE_SYNC1
+    call send_kcode
+    li a1, PD_KCODE_SYNC2
+    // Header
+    call send_kcode
+    li a1, PD_KCODE_1
+    call send_kcode
+    li a1, PD_KCODE_A
+    call send_kcode
+    li a1, PD_KCODE_1
+    call send_kcode
+    li a1, PD_KCODE_4
+    call send_kcode
+    // Frame 1
+    li a1, PD_KCODE_C
+    call send_kcode
+    li a1, PD_KCODE_2
+    call send_kcode
+    li a1, PD_KCODE_1
+    call send_kcode
+    li a1, PD_KCODE_9
+    call send_kcode
+    li a1, PD_KCODE_1
+    call send_kcode
+    li a1, PD_KCODE_0
+    call send_kcode
+    li a1, PD_KCODE_A
+    call send_kcode
+    li a1, PD_KCODE_0
+    call send_kcode
+    // Frame 2
+    // li a1, PD_KCODE_C
+    // call send_kcode
+    // li a1, PD_KCODE_2
+    // call send_kcode
+    // li a1, PD_KCODE_1
+    // call send_kcode
+    // li a1, PD_KCODE_D
+    // call send_kcode
+    // li a1, PD_KCODE_2
+    // call send_kcode
+    // li a1, PD_KCODE_0
+    // call send_kcode
+    // li a1, PD_KCODE_0
+    // call send_kcode
+    // li a1, PD_KCODE_0
+    // call send_kcode
+    // Frame 3
+    // li a1, PD_KCODE_C
+    // call send_kcode
+    // li a1, PD_KCODE_2
+    // call send_kcode
+    // li a1, PD_KCODE_1
+    // call send_kcode
+    // li a1, PD_KCODE_B
+    // call send_kcode
+    // li a1, PD_KCODE_4
+    // call send_kcode
+    // li a1, PD_KCODE_0
+    // call send_kcode
+    // li a1, PD_KCODE_0
+    // call send_kcode
+    // li a1, PD_KCODE_0
+    // call send_kcode
+    // Frame 4
+    // li a1, PD_KCODE_5
+    // call send_kcode
+    // li a1, PD_KCODE_4
+    // call send_kcode
+    // li a1, PD_KCODE_1
+    // call send_kcode
+    // li a1, PD_KCODE_4
+    // call send_kcode
+    // li a1, PD_KCODE_6
+    // call send_kcode
+    // li a1, PD_KCODE_0
+    // call send_kcode
+    // li a1, PD_KCODE_0
+    // call send_kcode
+    // li a1, PD_KCODE_0
+    // call send_kcode
+    // CRC
+    li a1, PD_KCODE_9
+    call send_kcode
+    li a1, PD_KCODE_0
+    call send_kcode
+    li a1, PD_KCODE_A
+    call send_kcode
+    li a1, PD_KCODE_F
+    call send_kcode
+    li a1, PD_KCODE_A
+    call send_kcode
+    li a1, PD_KCODE_4
+    call send_kcode
+    li a1, PD_KCODE_A
+    call send_kcode
+    li a1, PD_KCODE_E
+    call send_kcode
+    // EOP
+    li a1, PD_KCODE_EOP
+    call send_kcode
+
+    // toggle pin once more
+    li a4, 1
+    c.slli a4, PD_OH_PIN
+    lw a5, OUTDR_OFFSET(a3)
+    c.xor a5, a4
+    sw a5, OUTDR_OFFSET(a3)
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    c.or a5, a4
+    sw a5, OUTDR_OFFSET(a3)
+
+    // set high
+    li a4, 1
+    c.slli a4, PD_OH_PIN
+    lw a5, OUTDR_OFFSET(a3)
+    c.or a5, a4
+    sw a5, OUTDR_OFFSET(a3)
 
 send_data:
     // TODO implement
@@ -294,21 +445,13 @@ send_kcode:
     lb a1, (t0)
 
     // send 5 bits
-    li t0, 4
+    li a5, 4
 send_kcode_loop:
+    sw a5, 44(sp)
     mv a0, a1
-    c.srli a0, 1
     c.andi a0, 1
-    mv t2, ra // send_bit doesn't use t2
-    call send_bit
-    mv ra, t2
-    c.addi t0, -1
-    mv a5, t0
-    bge a5, zero, send_kcode_loop
-    ret
-
-// sends bit in a0
-send_bit:
+    c.srli a1, 1
+send_kcode_bit:
     // first half of bit
     li a4, 1
     c.slli a4, PD_OH_PIN
@@ -321,29 +464,71 @@ send_bit:
     addi a4, a4, PD_TIMER_TX_PERIOD
     sw a4, 40(sp)
     la t0, SysTick_BASE
-sync_loop3:
+kcode_bit_sync1:
     lw a5, SYSTICK_CNT_OFFSET(t0)
-    blt a5, a4, sync_loop3
+    blt a5, a4, kcode_bit_sync1
 
     // second half of bit
-second_half:
-    c.beqz a0, skip_second_transistion
+kcode_bit_second_half:
+    c.beqz a0, kcode_bit_skip_second_transistion
     // transition for 1
     li a4, 1
     c.slli a4, PD_OH_PIN
     lw a5, OUTDR_OFFSET(a3)
     c.xor a5, a4
     sw a5, OUTDR_OFFSET(a3)
-skip_second_transistion:
+kcode_bit_skip_second_transistion:
     // wait for sample
     lw a4, 40(sp)
     addi a4, a4, PD_TIMER_TX_PERIOD
     sw a4, 40(sp)
     la t0, SysTick_BASE
-sync_loop4:
+kcode_bit_sync2:
     lw a5, SYSTICK_CNT_OFFSET(t0)
-    blt a5, a4, sync_loop4
+    blt a5, a4, kcode_bit_sync2
+
+    lw a5, 44(sp)
+    c.addi a5, -1
+    bgez a5, send_kcode_loop
     ret
+
+; // sends bit in a0
+; send_bit:
+;     // first half of bit
+;     li a4, 1
+;     c.slli a4, PD_OH_PIN
+;     lw a5, OUTDR_OFFSET(a3)
+;     c.xor a5, a4
+;     sw a5, OUTDR_OFFSET(a3)
+
+;     // wait for sample
+;     lw a4, 40(sp)
+;     addi a4, a4, PD_TIMER_TX_PERIOD
+;     sw a4, 40(sp)
+;     la t0, SysTick_BASE
+; sync_loop3:
+;     lw a5, SYSTICK_CNT_OFFSET(t0)
+;     blt a5, a4, sync_loop3
+
+;     // second half of bit
+; second_half:
+;     c.beqz a0, skip_second_transistion
+;     // transition for 1
+;     li a4, 1
+;     c.slli a4, PD_OH_PIN
+;     lw a5, OUTDR_OFFSET(a3)
+;     c.xor a5, a4
+;     sw a5, OUTDR_OFFSET(a3)
+; skip_second_transistion:
+;     // wait for sample
+;     lw a4, 40(sp)
+;     addi a4, a4, PD_TIMER_TX_PERIOD
+;     sw a4, 40(sp)
+;     la t0, SysTick_BASE
+; sync_loop4:
+;     lw a5, SYSTICK_CNT_OFFSET(t0)
+;     blt a5, a4, sync_loop4
+;     ret
 
 
 /*
