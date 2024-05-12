@@ -43,11 +43,12 @@ void opamp_init( void )
 	EXTEN->EXTEN_CTR |= EXTEN_OPA_EN; // alt inputs: EXTEN_OPA_PSEL | EXTEN_OPA_NSEL;
 }
 
-void send_packet();
+void send_packet(uint8_t *data, uint32_t len);
 
 void send_test_message() {
-    uint8_t test_message[] = {0xDE, 0xAD, 0xBE, 0xEF};
-    send_packet();
+    //uint8_t test_message[] = {0xC0, 0xFE, 0xDE, 0xAD, 0xBE, 0xEF};
+    uint8_t test_message[] = {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
+    send_packet(test_message, sizeof(test_message));
 }
 
 int main()

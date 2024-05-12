@@ -225,8 +225,8 @@ recv_kcode_end:
 .balign 4
 send_packet:
     addi sp,sp,-80
-	sw a0, 0(sp)
-	sw a1, 4(sp)
+	sw a0, 0(sp) // message byte array
+	sw a1, 4(sp) // message length
 	sw a2, 8(sp)
 	sw a3, 12(sp)
 	sw a4, 16(sp)
@@ -252,6 +252,15 @@ send_preamble_loop:
     sw a5, 44(sp)
     andi a0, a5, 1
 send_preamble_bit:
+    // wait for sample
+    lw a4, 40(sp)
+    addi a4, a4, PD_TIMER_TX_PERIOD
+    sw a4, 40(sp)
+    la t0, SysTick_BASE
+preamble_bit_sync1:
+    lw a5, SYSTICK_CNT_OFFSET(t0)
+    blt a5, a4, preamble_bit_sync1
+
     // first half of bit
     li a4, 1
     c.slli a4, PD_OH_PIN
@@ -264,9 +273,9 @@ send_preamble_bit:
     addi a4, a4, PD_TIMER_TX_PERIOD
     sw a4, 40(sp)
     la t0, SysTick_BASE
-preamble_bit_sync1:
+preamble_bit_sync2:
     lw a5, SYSTICK_CNT_OFFSET(t0)
-    blt a5, a4, preamble_bit_sync1
+    blt a5, a4, preamble_bit_sync2
 
     // second half of bit
 preamble_bit_second_half:
@@ -278,14 +287,6 @@ preamble_bit_second_half:
     c.xor a5, a4
     sw a5, OUTDR_OFFSET(a3)
 preamble_bit_skip_second_transistion:
-    // wait for sample
-    lw a4, 40(sp)
-    addi a4, a4, PD_TIMER_TX_PERIOD
-    sw a4, 40(sp)
-    la t0, SysTick_BASE
-preamble_bit_sync2:
-    lw a5, SYSTICK_CNT_OFFSET(t0)
-    blt a5, a4, preamble_bit_sync2
 
     lw a5, 44(sp)
     c.addi a5, -1
@@ -299,104 +300,50 @@ preamble_bit_sync2:
     li a1, PD_KCODE_SYNC1
     call send_kcode
     li a1, PD_KCODE_SYNC2
-    // Header
     call send_kcode
-    li a1, PD_KCODE_1
+
+
+    lw a0, 0(sp) // message byte array
+    lw a1, 4(sp) // message length
+send_data_loop:
+    c.beqz a1, send_data_end
+    // send first nibble
+    li a1, 0xBA
+    //lw a0, 0(sp) // message byte array
+    //lb a1, (a0)
+    c.srli a1, 4
+    c.andi a1, 0b1111 
     call send_kcode
-    li a1, PD_KCODE_A
+    
+    // send second nibble
+    li a1, 0xBA
+    //lw a0, 0(sp) // message byte array
+    //lb a1, (a0)
+    c.andi a1, 0b1111
     call send_kcode
-    li a1, PD_KCODE_1
-    call send_kcode
-    li a1, PD_KCODE_4
-    call send_kcode
-    // Frame 1
-    li a1, PD_KCODE_C
-    call send_kcode
-    li a1, PD_KCODE_2
-    call send_kcode
-    li a1, PD_KCODE_1
-    call send_kcode
-    li a1, PD_KCODE_9
-    call send_kcode
-    li a1, PD_KCODE_1
-    call send_kcode
-    li a1, PD_KCODE_0
-    call send_kcode
-    li a1, PD_KCODE_A
-    call send_kcode
-    li a1, PD_KCODE_0
-    call send_kcode
-    // Frame 2
-    // li a1, PD_KCODE_C
-    // call send_kcode
-    // li a1, PD_KCODE_2
-    // call send_kcode
-    // li a1, PD_KCODE_1
-    // call send_kcode
-    // li a1, PD_KCODE_D
-    // call send_kcode
-    // li a1, PD_KCODE_2
-    // call send_kcode
-    // li a1, PD_KCODE_0
-    // call send_kcode
-    // li a1, PD_KCODE_0
-    // call send_kcode
-    // li a1, PD_KCODE_0
-    // call send_kcode
-    // Frame 3
-    // li a1, PD_KCODE_C
-    // call send_kcode
-    // li a1, PD_KCODE_2
-    // call send_kcode
-    // li a1, PD_KCODE_1
-    // call send_kcode
-    // li a1, PD_KCODE_B
-    // call send_kcode
-    // li a1, PD_KCODE_4
-    // call send_kcode
-    // li a1, PD_KCODE_0
-    // call send_kcode
-    // li a1, PD_KCODE_0
-    // call send_kcode
-    // li a1, PD_KCODE_0
-    // call send_kcode
-    // Frame 4
-    // li a1, PD_KCODE_5
-    // call send_kcode
-    // li a1, PD_KCODE_4
-    // call send_kcode
-    // li a1, PD_KCODE_1
-    // call send_kcode
-    // li a1, PD_KCODE_4
-    // call send_kcode
-    // li a1, PD_KCODE_6
-    // call send_kcode
-    // li a1, PD_KCODE_0
-    // call send_kcode
-    // li a1, PD_KCODE_0
-    // call send_kcode
-    // li a1, PD_KCODE_0
-    // call send_kcode
-    // CRC
-    li a1, PD_KCODE_9
-    call send_kcode
-    li a1, PD_KCODE_0
-    call send_kcode
-    li a1, PD_KCODE_A
-    call send_kcode
-    li a1, PD_KCODE_F
-    call send_kcode
-    li a1, PD_KCODE_A
-    call send_kcode
-    li a1, PD_KCODE_4
-    call send_kcode
-    li a1, PD_KCODE_A
-    call send_kcode
-    li a1, PD_KCODE_E
-    call send_kcode
+
+    // loop over bytes
+    lw a0, 0(sp) // message byte array
+    lw a1, 4(sp) // message length
+    c.addi a0, 1
+    c.addi a1, -1
+    sw a0, 0(sp)
+    sw a1, 4(sp) 
+    c.j send_data_loop
+
+send_data_end:
     // EOP
     li a1, PD_KCODE_EOP
     call send_kcode
+
+    // wait for sample
+    lw a4, 40(sp)
+    addi a4, a4, PD_TIMER_TX_PERIOD
+    sw a4, 40(sp)
+    la t0, SysTick_BASE
+eop_bit_sync1:
+    lw a5, SYSTICK_CNT_OFFSET(t0)
+    blt a5, a4, eop_bit_sync1
 
     // toggle pin once more
     li a4, 1
@@ -419,9 +366,6 @@ preamble_bit_sync2:
     lw a5, OUTDR_OFFSET(a3)
     c.or a5, a4
     sw a5, OUTDR_OFFSET(a3)
-
-send_data:
-    // TODO implement
 
     // restore state
     lw ra, 36(sp)
@@ -452,6 +396,15 @@ send_kcode_loop:
     c.andi a0, 1
     c.srli a1, 1
 send_kcode_bit:
+    // wait for sample
+    lw a4, 40(sp)
+    addi a4, a4, PD_TIMER_TX_PERIOD
+    sw a4, 40(sp)
+    la t0, SysTick_BASE
+kcode_bit_sync1:
+    lw a5, SYSTICK_CNT_OFFSET(t0)
+    blt a5, a4, kcode_bit_sync1
+
     // first half of bit
     li a4, 1
     c.slli a4, PD_OH_PIN
@@ -464,9 +417,9 @@ send_kcode_bit:
     addi a4, a4, PD_TIMER_TX_PERIOD
     sw a4, 40(sp)
     la t0, SysTick_BASE
-kcode_bit_sync1:
+kcode_bit_sync2:
     lw a5, SYSTICK_CNT_OFFSET(t0)
-    blt a5, a4, kcode_bit_sync1
+    blt a5, a4, kcode_bit_sync2
 
     // second half of bit
 kcode_bit_second_half:
@@ -478,14 +431,6 @@ kcode_bit_second_half:
     c.xor a5, a4
     sw a5, OUTDR_OFFSET(a3)
 kcode_bit_skip_second_transistion:
-    // wait for sample
-    lw a4, 40(sp)
-    addi a4, a4, PD_TIMER_TX_PERIOD
-    sw a4, 40(sp)
-    la t0, SysTick_BASE
-kcode_bit_sync2:
-    lw a5, SYSTICK_CNT_OFFSET(t0)
-    blt a5, a4, kcode_bit_sync2
 
     lw a5, 44(sp)
     c.addi a5, -1
