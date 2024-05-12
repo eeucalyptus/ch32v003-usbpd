@@ -308,17 +308,17 @@ preamble_bit_skip_second_transistion:
 send_data_loop:
     c.beqz a1, send_data_end
     // send first nibble
-    li a1, 0xBA
-    //lw a0, 0(sp) // message byte array
-    //lb a1, (a0)
-    c.srli a1, 4
+    //li a1, 0xBA
+    lw a0, 0(sp) // message byte array
+    lb a1, (a0)
     c.andi a1, 0b1111 
     call send_kcode
     
     // send second nibble
-    li a1, 0xBA
-    //lw a0, 0(sp) // message byte array
-    //lb a1, (a0)
+    //li a1, 0xBA
+    lw a0, 0(sp) // message byte array
+    lb a1, (a0)
+    c.srli a1, 4
     c.andi a1, 0b1111
     call send_kcode
 

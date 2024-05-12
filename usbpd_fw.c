@@ -1,6 +1,7 @@
 #include "ch32v003fun.h"
 
 #include "pd_phy.h"
+#include "pd_crc.h"
 
 #include <stdio.h>
 #include <stdint.h>
@@ -46,8 +47,20 @@ void opamp_init( void )
 void send_packet(uint8_t *data, uint32_t len);
 
 void send_test_message() {
-    //uint8_t test_message[] = {0xC0, 0xFE, 0xDE, 0xAD, 0xBE, 0xEF};
-    uint8_t test_message[] = {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
+    //uint8_t test_message[] = {0xC0, 0xFE, 0xDE, 0xAD, 0xBE, 0xEF,0,0,0,0};
+    //uint8_t test_message[] = {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,0,0,0,0};
+    uint8_t test_message[] = {0xa1, 0x41, 0x2c, 0x91, 0x01, 0x0a, 0x2c, 0xd1, 0x02, 0x00, 0x2c, 0xb1, 0x04, 0x00, 0x45, 0x41, 0x06, 0x00,0,0,0,0};
+
+    pd_crc_init();
+    for(int i = 0; i < sizeof(test_message)-4; i++) {
+        pd_crc_update(test_message[i]);
+    }
+    int crc = pd_crc_finalize();
+    printf("CRC: %08X\r\n", crc);
+    test_message[sizeof(test_message)-4] = (crc >>  0) & 0xFF;
+    test_message[sizeof(test_message)-3] = (crc >>  8) & 0xFF;
+    test_message[sizeof(test_message)-2] = (crc >> 16) & 0xFF;
+    test_message[sizeof(test_message)-1] = (crc >> 24) & 0xFF;
     send_packet(test_message, sizeof(test_message));
 }
 
