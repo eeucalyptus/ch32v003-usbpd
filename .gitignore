@@ -6,4 +6,5 @@ usbpd_test
 *.lst
 *.map
 compile_commands.json
-
+board/ch32v003_usbpd-backups/*
+.cache/*

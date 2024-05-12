@@ -52,7 +52,7 @@ void send_test_message() {
 
 int main()
 {
-    // opamp_init();
+    opamp_init();
     SystemInit();
     gpio_init();
 
