@@ -7,6 +7,19 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#define PD_MESSAGETYPE_GOODCRC (0x01)
+#define PD_PORTDATAROLE_UFP (0x0000)
+#define PD_PORTDATAROLE_DFP (0x0020)
+#define PD_SPECREV1 (0x0000)
+#define PD_SPECREV2 (0x0040)
+#define PD_SPECREV3 (0x0080)
+#define PD_POWERROLE_SOURCE (0x0100)
+#define PD_POWERROLE_SINK (0x0000)
+#define PD_MESSAGEID(x) (((x) << 9) & 0x0E00)
+#define PD_NUMOBJ(x) (((x) << 12) & 0x7000)
+#define PD_EXTENDEDMESSAGE (0x8000)
+
+
 void gpio_init() {
     printf("Initializing GPIO...\r\n");
 
@@ -47,9 +60,12 @@ void opamp_init( void )
 void send_packet(uint8_t *data, uint32_t len);
 
 void send_test_message() {
+    uint16_t header = PD_MESSAGETYPE_GOODCRC | PD_PORTDATAROLE_DFP | PD_SPECREV3 | PD_POWERROLE_SOURCE | PD_MESSAGEID(0) | PD_NUMOBJ(0);
+
     //uint8_t test_message[] = {0xC0, 0xFE, 0xDE, 0xAD, 0xBE, 0xEF,0,0,0,0};
     //uint8_t test_message[] = {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,0,0,0,0};
-    uint8_t test_message[] = {0xa1, 0x41, 0x2c, 0x91, 0x01, 0x0a, 0x2c, 0xd1, 0x02, 0x00, 0x2c, 0xb1, 0x04, 0x00, 0x45, 0x41, 0x06, 0x00,0,0,0,0};
+    //uint8_t test_message[] = {0xa1, 0x41, 0x2c, 0x91, 0x01, 0x0a, 0x2c, 0xd1, 0x02, 0x00, 0x2c, 0xb1, 0x04, 0x00, 0x45, 0x41, 0x06, 0x00,0,0,0,0};
+    uint8_t test_message[] = {(header >> 0) & 0xFF, (header >> 8) & 0xFF, 0,0,0,0};
 
     pd_crc_init();
     for(int i = 0; i < sizeof(test_message)-4; i++) {
