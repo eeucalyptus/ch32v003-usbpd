@@ -4,6 +4,11 @@ I'm trying to get USB-PD working on the CH32V003. It doesn't have a dedicated US
 
 The project is still in an early stage and WIP, but I was able to transmit and receive messages. 
 
+I wrote two blog posts about the project:
+
+- [USB PD coding](https://eeucalyptus.net/2023-12-06-usb-pd-1.html)
+- [USB PD on the CH32V003](https://eeucalyptus.net/2024-05-13-usb-pd-2.html)
+
 ## Setup
 
 The development board can be found in the board directory. The board is a breakout board with the required passive components, a USB-C connector and a high voltage capable voltage regulator. 
