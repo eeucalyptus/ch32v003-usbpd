@@ -9,15 +9,12 @@
 //#define SysTick_BASE (0xE000F000)
 #define SYSTICK_CNT_OFFSET 0x8
 
-.section .text.vector_handler
-.global EXTI7_0_IRQHandler
+.global recv_packet
 .balign 4
-
-EXTI7_0_IRQHandler:
 recv_packet:
     addi sp,sp,-80  
-	sw a0, 0(sp)
-	sw a1, 4(sp)
+	sw a0, 0(sp) // message byte array
+	sw a1, 4(sp) // message length ptr
 	sw a2, 8(sp)
 	sw a3, 12(sp)
 	sw a4, 16(sp)
@@ -25,22 +22,27 @@ recv_packet:
     sw t0, 24(sp)
     sw t1, 28(sp)
     sw t2, 32(sp)
+    sw ra, 36(sp)
 
-retry_recv_packet:
     // initialize state
     li a0, 0b110 // shifty
     li a1, 0 // bit count
     li a2, 0 // bits
-    
-    lui a3, %hi(data_buffer) // data ptr  
-    addi a3, a3, %lo(data_buffer)
+    lw a3, 0(sp) // message byte array
+
+check_already_low:
+    la a5, PD_GPIO_BASE // GPIO ptr
+    lw a5, INDR_OFFSET(a5)
+    c.andi a5, 1<<PD_PIN
+    c.bnez a5, wait_for_low
+    li a0, -2
+    c.j recv_data_end
 
 wait_for_low:
 	la a5, PD_GPIO_BASE // GPIO ptr
     lw a5, INDR_OFFSET(a5)
-    c.srli a5, PD_PIN
-    c.andi a5, 1
-    c.beqz a5, wait_for_low
+    c.andi a5, 1<<PD_PIN
+    c.bnez a5, wait_for_low
 
     la t0, SysTick_BASE
     lw a4, SYSTICK_CNT_OFFSET(t0) // timer
@@ -72,9 +74,10 @@ sync_loop1:
 
     // cases
     c.beqz a5, preamble // NONE
-    li t1, PD_BIT_LUT_INVALID
+    c.addi a5, PD_BIT_LUT_NONE-PD_BIT_LUT_INVALID
     c.beqz a5, preamble_invalid // INVALID
     li t1, PD_BIT_LUT_0
+    c.addi a5, PD_BIT_LUT_INVALID-PD_BIT_LUT_0
     c.beqz a5, preamble_bit0 // 0
     
 preamble_bit1:
@@ -86,9 +89,9 @@ preamble_bit1:
     // count up
     addi a1, a1, 1
     // check for full preamble
-    li a5, 50 // TODO is probably 49 instead because of bgt, or use bge instead
-    bgt a5, a1, preamble_done
-    c.j preamble
+    li a5, 50 
+    bgt a5, a1, preamble
+    c.j preamble_done
 
 preamble_bit0:
     // check preamble bit
@@ -102,13 +105,18 @@ preamble_bit0:
     c.j preamble
 
 
-preamble_invalid:
+preamble_invalid:    
+    //li a0, -1
+    mv a0, a1
+    // sub a0, a0, a1 // -1000-bitcount
+    c.j recv_data_end
+
     // end in invalid state
     li a5, 0b111111
     c.and a5, a0
     bnez a5, bad_preamble
     bnez a1, bad_preamble
-    c.j retry_recv_packet
+    //c.j retry_recv_packet
 bad_preamble:
     // return bad_preamble 
     c.j bad_preamble
@@ -117,6 +125,8 @@ bad_preamble:
 preamble_done:
     // check for SOF
     call recv_kcode
+    mv a0, a2
+    c.j recv_data_end
     c.addi a2, -PD_KCODE_SYNC1
     c.bnez a2, sof_invalid
     call recv_kcode
@@ -128,6 +138,14 @@ preamble_done:
     call recv_kcode
     c.addi a2, -PD_KCODE_SYNC2
     c.bnez a2, sof_invalid
+
+    li a0, 0
+    c.j recv_data_end
+
+
+sof_invalid:
+    li a0, -3
+    c.j recv_data_end
 
 recv_data:
     call recv_kcode
@@ -145,6 +163,7 @@ recv_data:
 
 recv_data_end:
     // restore state
+    lw ra, 36(sp)
     lw t2, 32(sp)
     lw t1, 28(sp)
     lw t0, 24(sp)
@@ -153,19 +172,16 @@ recv_data_end:
     lw a3, 12(sp)
     lw a2, 8(sp)
     lw a1, 4(sp)
-    lw a0, (sp)
     addi sp,sp,80
-    mret
+    ret
 
 
-sof_invalid:
-    // end in invalid state
-    c.j sof_invalid
 
 
 // recvs a kcode to a2
 recv_kcode:
     li a2, 0 // bits
+    li a1, 0 // bit count
 recv_kcode_loop:
     // wait for sample
     addi a4, a4, PD_TIMER_RX_PERIOD
@@ -175,6 +191,7 @@ sync_loop2:
     blt t1, a4, sync_loop2
 
     // sample input
+	la a5, PD_GPIO_BASE // GPIO ptr
     lw a5, INDR_OFFSET(a5)
     c.srli a5, PD_PIN
     c.andi a5, 1
@@ -182,7 +199,7 @@ sync_loop2:
     c.slli a0, 1
     c.or a0, a5
 
-    // check bit event from lut
+// check bit event from lut    
     li a5, 0b111111
     c.and a5, a0
     la t1, pd_bit_lut
@@ -191,9 +208,9 @@ sync_loop2:
 
     // cases
     c.beqz a5, recv_kcode_loop // NONE
-    li t1, PD_BIT_LUT_INVALID
+    c.addi a5, PD_BIT_LUT_NONE-PD_BIT_LUT_INVALID
     c.beqz a5, recv_kcode_invalid // INVALID
-    li t1, PD_BIT_LUT_0
+    c.addi a5, PD_BIT_LUT_INVALID-PD_BIT_LUT_0
     c.beqz a5, recv_kcode_bit0 // 0
 
 recv_kcode_bit1:
@@ -204,17 +221,20 @@ recv_kcode_bit0:
     c.slli a2, 1
 recv_kcode_bit:
     // count up
-    addi a1, a1, 1
+    c.addi a1, 1
     // check for full preamble
     li t0, 5
-    bge t0, a1, recv_kcode_end
+    bge a1, t0, recv_kcode_end
     c.j recv_kcode_loop
 
 recv_kcode_invalid:
     // end in invalid state
-    c.j recv_kcode_invalid
+    li a2, -7
+    ret
 
 recv_kcode_end:
+    mv a2, a0
+    ret
     // c.andi a2, 0b11111 // no need to mask, only 5 bits
     la t0, pd_kcode_lut
     c.add t0, a2
@@ -351,6 +371,8 @@ eop_bit_sync1:
     lw a5, OUTDR_OFFSET(a3)
     c.xor a5, a4
     sw a5, OUTDR_OFFSET(a3)
+
+    // This really needs to be shortened :D
     nop
     nop
     nop

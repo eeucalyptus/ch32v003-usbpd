@@ -60,6 +60,7 @@ void opamp_init( void )
 }
 
 void send_packet(uint8_t *data, uint32_t len);
+int recv_packet(uint8_t *data);
 
 void send_test_message() {
 
@@ -97,15 +98,40 @@ int main()
     SystemInit();
     gpio_init();
 
-    for(int i = 10; i >= 0; i--) {
+    for(int i = 5; i >= 0; i--) {
         printf("Starting in %d...\r\n", i);
         Delay_Ms(1000);
     }
 
+    // while(1) {
+    //     printf("Sending...\r\n");
+    //     send_test_message();
+    //     Delay_Ms(1000);
+    // }
+
     while(1) {
-        printf("Sending...\r\n");
-        send_test_message();
-        Delay_Ms(1000);
+        uint8_t buf[100];
+        int nRecv = recv_packet(buf);
+        if (nRecv == 0) {
+            printf("Got Preamble and SOF\r\n");
+        }
+        else if (nRecv == -1) {
+            printf("Preamble invalid!\r\n");
+        }
+        else if(nRecv == -2)
+        {
+            printf("already low, waiting a few ms!\r\n");
+            Delay_Ms(100);
+        }
+        else if (nRecv == -3) {
+            printf("SOF invalid!\r\n");
+        }
+        else if (nRecv == -4) {
+            printf("KCODE invalid!\r\n");
+        }
+        else {
+            printf("returned %d bytes\r\n", nRecv);
+        }
     }
 
     return 0;
