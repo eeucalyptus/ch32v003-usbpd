@@ -8,6 +8,8 @@
 #include <stdbool.h>
 
 #define PD_MESSAGETYPE_GOODCRC (0x01)
+#define PD_MESSAGETYPE_GETSTATUS (0x12)
+#define PD_MESSAGETYPE_GETSRCCAP (0x7)
 #define PD_PORTDATAROLE_UFP (0x0000)
 #define PD_PORTDATAROLE_DFP (0x0020)
 #define PD_SPECREV1 (0x0000)
@@ -27,12 +29,12 @@ void gpio_init() {
     RCC->APB2PCENR |= RCC_APB2Periph_GPIOD;
     // high side
     PD_OH_GPIO->CFGLR &= ~(0xf<<(PD_OH_PIN*4));
-    PD_OH_GPIO->CFGLR |= (GPIO_Speed_10MHz | GPIO_CNF_OUT_PP)<<(PD_OH_PIN*4); // CNF = 01: floating, MODE = 00: input
+    PD_OH_GPIO->CFGLR |= (GPIO_Speed_In | GPIO_CNF_IN_ANALOG)<<(PD_OH_PIN*4); // CNF = 01: floating, MODE = 00: input
     PD_OH_GPIO->BSHR = 1<<PD_OH_PIN; // set high
     // // low side
-    // PD_OL_GPIO->CFGLR &= ~(0xf<<(PD_OL_PIN*4));
-    // PD_OL_GPIO->CFGLR |= 0b0011<<(PD_OL_PIN*4); // CNF = 01: floating, MODE = 00: input
-    // PD_OL_GPIO->BSHR = (1<<(16+PD_OL_PIN)); // set low
+    PD_OL_GPIO->CFGLR &= ~(0xf<<(PD_OL_PIN*4));
+    PD_OL_GPIO->CFGLR |= (GPIO_Speed_In | GPIO_CNF_IN_ANALOG)<<(PD_OL_PIN*4); // CNF = 01: floating, MODE = 00: input
+    PD_OL_GPIO->BSHR = (1<<(16+PD_OL_PIN)); // set low
 
     // input OP-output
     // RCC->APB2PCENR |= RCC_APB2Periph_GPIOD;
@@ -60,12 +62,16 @@ void opamp_init( void )
 void send_packet(uint8_t *data, uint32_t len);
 
 void send_test_message() {
-    uint16_t header = PD_MESSAGETYPE_GOODCRC | PD_PORTDATAROLE_DFP | PD_SPECREV3 | PD_POWERROLE_SOURCE | PD_MESSAGEID(0) | PD_NUMOBJ(0);
 
     //uint8_t test_message[] = {0xC0, 0xFE, 0xDE, 0xAD, 0xBE, 0xEF,0,0,0,0};
     //uint8_t test_message[] = {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,0,0,0,0};
     //uint8_t test_message[] = {0xa1, 0x41, 0x2c, 0x91, 0x01, 0x0a, 0x2c, 0xd1, 0x02, 0x00, 0x2c, 0xb1, 0x04, 0x00, 0x45, 0x41, 0x06, 0x00,0,0,0,0};
-    uint8_t test_message[] = {(header >> 0) & 0xFF, (header >> 8) & 0xFF, 0,0,0,0};
+
+    // uint16_t header = PD_MESSAGETYPE_GOODCRC | PD_PORTDATAROLE_UFP | PD_SPECREV3 | PD_POWERROLE_SINK | PD_MESSAGEID(0);
+    // uint8_t test_message[] = {(header >> 0) & 0xFF, (header >> 8) & 0xff, 0,0,0,0};
+
+    uint16_t header = PD_MESSAGETYPE_GETSRCCAP | PD_PORTDATAROLE_UFP | PD_SPECREV3 | PD_POWERROLE_SINK | PD_MESSAGEID(0);
+    uint8_t test_message[] = {(header >> 0) & 0xFF, (header >> 8) & 0xff, 0,0,0,0};
 
     pd_crc_init();
     for(int i = 0; i < sizeof(test_message)-4; i++) {
@@ -77,7 +83,12 @@ void send_test_message() {
     test_message[sizeof(test_message)-3] = (crc >>  8) & 0xFF;
     test_message[sizeof(test_message)-2] = (crc >> 16) & 0xFF;
     test_message[sizeof(test_message)-1] = (crc >> 24) & 0xFF;
+    
+    PD_OH_GPIO->CFGLR |= (GPIO_Speed_10MHz | GPIO_CNF_OUT_PP)<<(PD_OH_PIN*4); // CNF = 01: floating, MODE = 00: input
+    PD_OL_GPIO->CFGLR |= (GPIO_Speed_10MHz | GPIO_CNF_OUT_PP)<<(PD_OL_PIN*4); // CNF = 01: floating, MODE = 00: input
     send_packet(test_message, sizeof(test_message));
+    PD_OH_GPIO->CFGLR &= ~(0xf<<(PD_OH_PIN*4)); // CNF = 01: floating, MODE = 00: input
+    PD_OL_GPIO->CFGLR &= ~(0xf<<(PD_OL_PIN*4)); // CNF = 01: floating, MODE = 00: input
 }
 
 int main()
@@ -86,7 +97,7 @@ int main()
     SystemInit();
     gpio_init();
 
-    for(int i = 5; i >= 0; i--) {
+    for(int i = 10; i >= 0; i--) {
         printf("Starting in %d...\r\n", i);
         Delay_Ms(1000);
     }
